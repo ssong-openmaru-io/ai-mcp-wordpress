@@ -14,6 +14,7 @@ function cleanPost(post: {
   content: { rendered: string };
   excerpt: { rendered: string };
   author: number;
+  featured_media: number;
   categories: number[];
   tags: number[];
   link: string;
@@ -27,6 +28,7 @@ function cleanPost(post: {
     content: stripHtml(post.content.rendered),
     excerpt: stripHtml(post.excerpt.rendered),
     author: post.author,
+    featured_media: post.featured_media,
     categories: post.categories,
     tags: post.tags,
     link: post.link,
@@ -118,6 +120,8 @@ export function createServer(config: Config): McpServer {
         .optional()
         .describe("게시글 상태 (기본값: draft)"),
       excerpt: z.string().optional().describe("게시글 요약"),
+      author: z.number().int().positive().optional().describe("작성자 ID"),
+      featured_media: z.number().int().optional().describe("대표 이미지(미디어) ID"),
       categories: z
         .array(z.number().int())
         .optional()
@@ -125,7 +129,13 @@ export function createServer(config: Config): McpServer {
       tags: z.array(z.number().int()).optional().describe("태그 ID 배열"),
     },
     async (params) => {
-      logger.info("createPost 호출", { title: params.title, status: params.status });
+      logger.info("createPost 호출", {
+        title: params.title,
+        status: params.status,
+        author: params.author,
+        featured_media: params.featured_media,
+        categories: params.categories,
+      });
       try {
         const post = await wp.createPost(params);
         return {
@@ -150,6 +160,8 @@ export function createServer(config: Config): McpServer {
         .optional()
         .describe("변경할 상태"),
       excerpt: z.string().optional().describe("변경할 요약"),
+      author: z.number().int().positive().optional().describe("변경할 작성자 ID"),
+      featured_media: z.number().int().optional().describe("변경할 대표 이미지(미디어) ID"),
       categories: z
         .array(z.number().int())
         .optional()

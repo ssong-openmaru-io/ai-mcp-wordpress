@@ -11,6 +11,7 @@ export interface WPPost {
   content: { rendered: string };
   excerpt: { rendered: string };
   author: number;
+  featured_media: number;
   categories: number[];
   tags: number[];
   link: string;
@@ -30,6 +31,8 @@ export interface CreatePostParams {
   content: string;
   status?: string;
   excerpt?: string;
+  author?: number;
+  featured_media?: number;
   categories?: number[];
   tags?: number[];
 }
@@ -39,6 +42,8 @@ export interface UpdatePostParams {
   content?: string;
   status?: string;
   excerpt?: string;
+  author?: number;
+  featured_media?: number;
   categories?: number[];
   tags?: number[];
 }
@@ -97,6 +102,7 @@ export class WordPressClient {
 
     if (body && (method === "POST" || method === "PUT" || method === "PATCH")) {
       options.body = JSON.stringify(body);
+      logger.debug(`Request body: ${options.body}`);
     }
 
     // 자체 서명 인증서 허용 dispatcher 적용
@@ -142,14 +148,20 @@ export class WordPressClient {
   }
 
   async createPost(params: CreatePostParams): Promise<WPPost> {
-    return this.request<WPPost>("POST", "/posts", {
+    const result = await this.request<WPPost>("POST", "/posts", {
       title: params.title,
       content: params.content,
       status: params.status || "draft",
       excerpt: params.excerpt,
+      author: params.author,
+      featured_media: params.featured_media,
       categories: params.categories,
       tags: params.tags,
     });
+    logger.info(
+      `createPost 결과 - 요청 author: ${params.author}, 응답 author: ${result.author}, 요청 featured_media: ${params.featured_media}, 응답 featured_media: ${result.featured_media}`
+    );
+    return result;
   }
 
   async updatePost(id: number, params: UpdatePostParams): Promise<WPPost> {
