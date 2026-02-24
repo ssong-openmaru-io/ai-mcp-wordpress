@@ -56,7 +56,7 @@ export function createServer(config: Config): McpServer {
     "listPosts",
     "WordPress 게시글 목록을 조회합니다. 페이지네이션, 검색, 상태 필터를 지원합니다.",
     {
-      page: z.number().int().positive().optional().describe("페이지 번호 (기본값: 1)"),
+      page: z.number().int().min(1).optional().describe("페이지 번호 (기본값: 1)"),
       per_page: z
         .number()
         .int()
@@ -93,7 +93,7 @@ export function createServer(config: Config): McpServer {
     "getPost",
     "WordPress 게시글 하나를 ID로 조회합니다.",
     {
-      id: z.number().int().positive().describe("게시글 ID"),
+      id: z.number().int().min(1).describe("게시글 ID"),
     },
     async ({ id }) => {
       logger.info(`getPost 호출: id=${id}`);
@@ -120,7 +120,7 @@ export function createServer(config: Config): McpServer {
         .optional()
         .describe("게시글 상태 (기본값: draft)"),
       excerpt: z.string().optional().describe("게시글 요약"),
-      author: z.number().int().positive().optional().describe("작성자 ID"),
+      author: z.number().int().min(1).optional().describe("작성자 ID"),
       featured_media: z.number().int().optional().describe("대표 이미지(미디어) ID"),
       categories: z
         .array(z.number().int())
@@ -152,7 +152,7 @@ export function createServer(config: Config): McpServer {
     "updatePost",
     "WordPress 게시글을 수정합니다.",
     {
-      id: z.number().int().positive().describe("수정할 게시글 ID"),
+      id: z.number().int().min(1).describe("수정할 게시글 ID"),
       title: z.string().optional().describe("변경할 제목"),
       content: z.string().optional().describe("변경할 내용 (HTML 가능)"),
       status: z
@@ -160,7 +160,7 @@ export function createServer(config: Config): McpServer {
         .optional()
         .describe("변경할 상태"),
       excerpt: z.string().optional().describe("변경할 요약"),
-      author: z.number().int().positive().optional().describe("변경할 작성자 ID"),
+      author: z.number().int().min(1).optional().describe("변경할 작성자 ID"),
       featured_media: z.number().int().optional().describe("변경할 대표 이미지(미디어) ID"),
       categories: z
         .array(z.number().int())
@@ -186,7 +186,7 @@ export function createServer(config: Config): McpServer {
     "deletePost",
     "WordPress 게시글을 삭제합니다. force=true이면 휴지통을 건너뛰고 영구 삭제합니다.",
     {
-      id: z.number().int().positive().describe("삭제할 게시글 ID"),
+      id: z.number().int().min(1).describe("삭제할 게시글 ID"),
       force: z
         .boolean()
         .optional()
