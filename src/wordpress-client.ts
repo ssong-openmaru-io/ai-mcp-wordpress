@@ -29,6 +29,7 @@ export interface ListPostsParams {
 export interface CreatePostParams {
   title: string;
   content: string;
+  slug?: string;
   status?: string;
   excerpt?: string;
   author?: number;
@@ -40,6 +41,7 @@ export interface CreatePostParams {
 export interface UpdatePostParams {
   title?: string;
   content?: string;
+  slug?: string;
   status?: string;
   excerpt?: string;
   author?: number;
@@ -48,12 +50,95 @@ export interface UpdatePostParams {
   tags?: number[];
 }
 
+// --- Category ---
+export interface WPCategory {
+  id: number;
+  count: number;
+  description: string;
+  link: string;
+  name: string;
+  slug: string;
+  parent: number;
+}
+
+export interface ListCategoriesParams {
+  page?: number;
+  per_page?: number;
+  search?: string;
+  orderby?: string;
+  order?: string;
+  hide_empty?: boolean;
+  parent?: number;
+}
+
+export interface CreateCategoryParams {
+  name: string;
+  description?: string;
+  slug?: string;
+  parent?: number;
+}
+
+export interface UpdateCategoryParams {
+  name?: string;
+  description?: string;
+  slug?: string;
+  parent?: number;
+}
+
+// --- Tag ---
+export interface WPTag {
+  id: number;
+  count: number;
+  description: string;
+  link: string;
+  name: string;
+  slug: string;
+}
+
+export interface ListTagsParams {
+  page?: number;
+  per_page?: number;
+  search?: string;
+  orderby?: string;
+  order?: string;
+  hide_empty?: boolean;
+}
+
+export interface CreateTagParams {
+  name: string;
+  description?: string;
+  slug?: string;
+}
+
+export interface UpdateTagParams {
+  name?: string;
+  description?: string;
+  slug?: string;
+}
+
+// --- Yoast SEO ---
+export interface YoastSeoData {
+  focuskw?: string;
+  metadesc?: string;
+  title?: string;
+}
+
+export interface YoastSeoResponse {
+  id: number;
+  focuskw: string;
+  metadesc: string;
+  title: string;
+  [key: string]: unknown;
+}
+
 export class WordPressClient {
+  private siteUrl: string;
   private baseUrl: string;
   private authHeader: string;
   private dispatcher: Dispatcher | undefined;
 
   constructor(config: Config) {
+    this.siteUrl = config.baseUrl;
     this.baseUrl = `${config.baseUrl}/wp-json/wp/v2`;
 
     if (config.auth.type === "bearer") {
@@ -132,6 +217,55 @@ export class WordPressClient {
     return response.json() as Promise<T>;
   }
 
+  /** 커스텀 REST API 엔드포인트 요청 (wp/v2 이외의 경로) */
+  private async requestCustom<T>(
+    method: string,
+    path: string,
+    body?: unknown
+  ): Promise<T> {
+    const url = new URL(`${this.siteUrl}/wp-json${path}`);
+
+    logger.debug(`${method} ${url.toString()}`);
+
+    const options: RequestInit & { dispatcher?: unknown } = {
+      method,
+      headers: {
+        Authorization: this.authHeader,
+        "Content-Type": "application/json",
+      },
+    };
+
+    if (body && (method === "POST" || method === "PUT" || method === "PATCH")) {
+      options.body = JSON.stringify(body);
+      logger.debug(`Request body: ${options.body}`);
+    }
+
+    if (this.dispatcher) {
+      options.dispatcher = this.dispatcher;
+    }
+
+    const response = await fetch(url.toString(), options as RequestInit);
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      let errorMessage: string;
+      try {
+        const parsed = JSON.parse(errorBody);
+        errorMessage = parsed.message || errorBody;
+      } catch {
+        errorMessage = errorBody;
+      }
+      logger.error(
+        `WordPress API 오류: ${response.status} ${response.statusText} - ${errorMessage}`
+      );
+      throw new Error(
+        `WordPress API 오류 (${response.status}): ${errorMessage}`
+      );
+    }
+
+    return response.json() as Promise<T>;
+  }
+
   async listPosts(params: ListPostsParams = {}): Promise<WPPost[]> {
     return this.request<WPPost[]>("GET", "/posts", undefined, {
       page: params.page,
@@ -151,6 +285,7 @@ export class WordPressClient {
     const result = await this.request<WPPost>("POST", "/posts", {
       title: params.title,
       content: params.content,
+      slug: params.slug,
       status: params.status || "draft",
       excerpt: params.excerpt,
       author: params.author,
@@ -178,5 +313,97 @@ export class WordPressClient {
       undefined,
       { force: force ? "true" : undefined }
     );
+  }
+
+  // --- Categories ---
+
+  async listCategories(params: ListCategoriesParams = {}): Promise<WPCategory[]> {
+    return this.request<WPCategory[]>("GET", "/categories", undefined, {
+      _fields: "id,name",
+      page: params.page,
+      per_page: params.per_page,
+      search: params.search,
+      orderby: params.orderby,
+      order: params.order,
+      hide_empty: params.hide_empty !== undefined ? String(params.hide_empty) : undefined,
+      parent: params.parent,
+    });
+  }
+
+  async getCategory(id: number): Promise<WPCategory> {
+    return this.request<WPCategory>("GET", `/categories/${id}`);
+  }
+
+  async createCategory(params: CreateCategoryParams): Promise<WPCategory> {
+    return this.request<WPCategory>("POST", "/categories", {
+      name: params.name,
+      description: params.description,
+      slug: params.slug,
+      parent: params.parent,
+    });
+  }
+
+  async updateCategory(id: number, params: UpdateCategoryParams): Promise<WPCategory> {
+    return this.request<WPCategory>("PATCH", `/categories/${id}`, params);
+  }
+
+  async deleteCategory(id: number, force: boolean = false): Promise<{ deleted: boolean; previous: WPCategory }> {
+    return this.request<{ deleted: boolean; previous: WPCategory }>(
+      "DELETE",
+      `/categories/${id}`,
+      undefined,
+      { force: force ? "true" : undefined }
+    );
+  }
+
+  // --- Tags ---
+
+  async listTags(params: ListTagsParams = {}): Promise<WPTag[]> {
+    return this.request<WPTag[]>("GET", "/tags", undefined, {
+      _fields: "id,name",
+      page: params.page,
+      per_page: params.per_page,
+      search: params.search,
+      orderby: params.orderby,
+      order: params.order,
+      hide_empty: params.hide_empty !== undefined ? String(params.hide_empty) : undefined,
+    });
+  }
+
+  async getTag(id: number): Promise<WPTag> {
+    return this.request<WPTag>("GET", `/tags/${id}`);
+  }
+
+  async createTag(params: CreateTagParams): Promise<WPTag> {
+    return this.request<WPTag>("POST", "/tags", {
+      name: params.name,
+      description: params.description,
+      slug: params.slug,
+    });
+  }
+
+  async updateTag(id: number, params: UpdateTagParams): Promise<WPTag> {
+    return this.request<WPTag>("PATCH", `/tags/${id}`, params);
+  }
+
+  async deleteTag(id: number, force: boolean = false): Promise<{ deleted: boolean; previous: WPTag }> {
+    return this.request<{ deleted: boolean; previous: WPTag }>(
+      "DELETE",
+      `/tags/${id}`,
+      undefined,
+      { force: force ? "true" : undefined }
+    );
+  }
+
+  // --- Yoast SEO ---
+
+  async updateYoastSeo(id: number, params: YoastSeoData): Promise<YoastSeoResponse> {
+    return this.requestCustom<YoastSeoResponse>("POST", `/avia/v1/yoast-seo/${id}`, params);
+  }
+
+  // --- Avia Builder ---
+
+  async activateBuilder(id: number): Promise<unknown> {
+    return this.requestCustom<unknown>("POST", `/avia/v1/activate-builder/${id}`);
   }
 }
