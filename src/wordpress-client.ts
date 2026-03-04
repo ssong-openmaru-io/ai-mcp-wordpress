@@ -398,12 +398,12 @@ export class WordPressClient {
   // --- Yoast SEO ---
 
   async updateYoastSeo(id: number, params: YoastSeoData): Promise<YoastSeoResponse> {
-    return this.requestCustom<YoastSeoResponse>("POST", `/avia/v1/yoast-seo/${id}`, params);
+    return this.requestCustom<YoastSeoResponse>("POST", `/openmaru/v1/yoast-seo/${id}`, params);
   }
 
   // --- Avia Builder ---
 
   async activateBuilder(id: number): Promise<unknown> {
-    return this.requestCustom<unknown>("POST", `/avia/v1/activate-builder/${id}`);
+    return this.requestCustom<unknown>("POST", `/openmaru/v1/activate-builder/${id}`);
   }
 }
